@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # Import our organized modules
 from config import Config
-from constants import DEFAULT_CHUNK_SIZE, MAX_SAFE_GEMINI_WORDS
+from constants import DEFAULT_CHUNK_SIZE
 from ai_services import break_text_into_chunks, validate_ai_services
 from text_tools import process_large_text, clean_text_for_processing, count_words
 from vector_database import (

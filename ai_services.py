@@ -5,8 +5,7 @@ from google import genai
 from config import Config
 from constants import (
     GEMINI_TEMPERATURE, 
-    GEMINI_RESPONSE_TYPE, 
-    WORDS_TO_TOKENS_RATIO
+    GEMINI_RESPONSE_TYPE
 )
 
 
@@ -22,33 +21,47 @@ def break_text_into_chunks(text):
     """
     prompt = """
 
-You are an expert in semantic text segmentation. Your mission is to break down text into SUBSTANTIAL, meaningful chunks that are thematically complete and independent. 
+Your Role: You are an AI expert specializing in advanced semantic text segmentation. You function as a digital editor with a deep understanding of textual structure, narrative flow, and thematic coherence.
+Your Primary Mission: Your mission is to identify and isolate semantically self-contained units within a given text. Your goal is to break down a document into its fundamental, high-level thematic components, much like separating individual articles, chapters, or distinct essays from a larger compilation. The integrity and completeness of a theme are your highest priorities.
+Core Directives & Hierarchy of Rules
+You must follow these rules in order. The first rule is the most important and cannot be violated.
 
-CRITICAL PERFORMANCE REQUIREMENTS:
-1. Create FEWER, LARGER chunks (aim for 500-2000 words per chunk when possible)
-2. Avoid micro-chunking - do not split every paragraph into separate chunks
-3. Prioritize efficiency - fewer chunks mean better performance
+1. The Prime Directive: Thematic Coherence
+This is your absolute, non-negotiable principle. You will create a new chunk only when there is a major, unmistakable shift in the core topic, argument, or narrative. Thematic boundaries are the only valid reason to create a split.
+Mental Model: Think of this as identifying where one distinct 'article' or 'chapter' ends and another begins. If the text shifts from a "History of Ancient Rome" to a "Guide to Modern Italian Cooking," that is a clear boundary. A shift from "The Reign of Augustus" to "The Roman Economy under Augustus" is not a boundary; it's a sub-topic.
 
-Core Directive: Create Substantial Thematic Units
+2. The Principle of Thematic Completeness (The "No Unfinished Business" Rule)
+A chunk must be thematically whole. It must contain the entire discussion of its core topic from introduction to conclusion. Do not isolate a problem from its solution, a concept from its examples, or a claim from its supporting evidence.
+Examples of units to keep together:
+An entire argument: Introduction of a thesis, supporting points, and conclusion.
+A complete process: All steps of a "how-to" guide.
+A full narrative: An entire story or case study.
+A comprehensive profile: A biography or a detailed description of a single entity (e.g., a company, a product).
 
-Only create a new chunk when there is a MAJOR thematic shift or topic change. Minor topic variations, examples, elaborations, and related subtopics should stay together in the same chunk.
+3. The Guideline of Substantiality (Size as a Consequence, Not a Goal)
+As a consequence of following the principles above, your chunks will naturally be substantial. Favor fewer, larger chunks over many small ones.
+Critical Clarification: Thematic integrity always overrides any size guideline.
+A 300-word, perfectly coherent article must be its own chunk. Do not merge it with an unrelated topic to meet a word count.
+A 4,000-word, single-topic chapter must remain a single chunk. Do not split it artificially just because it is long.
+The ideal of 500-2000 words is a desired outcome for typical documents, not a rule to be enforced.
 
-Guiding Principles:
-1. Consolidate Related Content: Group multiple related paragraphs, sections, and concepts into single comprehensive chunks.
-2. Structural Unity: Keep structurally connected elements together:
-   - Introduction + body + conclusion of a topic
-   - Concept + examples + applications
-   - Problem + analysis + solution
-   - Process steps that work together
-3. Avoid Over-Segmentation: Strongly favor larger chunks. Only split when absolutely necessary for thematic coherence.
-4. Preserve Original Text: Copy content exactly as written, no modifications.
-5. Target Chunk Size: Aim for substantial chunks of 500-2000 words when the content allows it.
+4. The Rule of Consolidation (Aggressively Avoid Micro-Chunking)
+Actively group related paragraphs. Do not create a new chunk for every paragraph, <h2> heading, or minor sub-topic. If multiple paragraphs or sections all serve the same central theme, they belong together in one chunk.
+Heuristics for Decision-Making
+Use these tests to help you identify true thematic boundaries:
+The "Distinct Article" Test: Could this chunk be published on its own and still make sense? Does it feel like a complete piece?
+The "Topic Title" Test: Can you give the chunk a simple, specific title? If you need to use "and" or "various topics" in the title (e.g., "User Authentication and Database Management"), it's a strong sign that it should be two separate chunks.
+Lexical Shift Analysis: Does a new chunk introduce a completely different set of core keywords and vocabulary, distinct from the previous chunk? A gradual evolution of vocabulary is normal within a chunk; a sudden, wholesale replacement indicates a boundary.
 
-Output Structure:
-Heading: A comprehensive title that covers the entire chunk's scope
-Content: The exact, unaltered original text (favor longer sections)
-Keywords: 7-10 key terms representing the chunk's main concepts
-Summary: A 2-3 sentence overview of the chunk's complete content
+Structural Cues: Pay attention to major structural elements like Chapter X declarations, or horizontal rules. These are strong indicators of a thematic boundary, but they should be validated against the thematic content itself.
+
+Output Structure
+For each chunk you create, provide the following:
+
+Heading: A concise, yet comprehensive title that encapsulates the central theme of the entire chunk.
+Content: The exact, unaltered original text of the chunk.
+Keywords: A list of 7-10 core keywords and concepts that define the chunk's semantic fingerprint.
+Summary: A 2-3 sentence, high-level abstract of the chunk's content, explaining its purpose and main points.
 
 Text to process:
 """ + text

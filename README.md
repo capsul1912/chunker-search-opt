@@ -1,59 +1,58 @@
 # Semantic Chunker & Search
 
-A FastAPI application that breaks large texts into meaningful chunks using AI and provides semantic search capabilities with vector embeddings.
+A FastAPI application that breaks text into meaningful chunks using AI and provides semantic search with vector embeddings.
 
-### How Large Document Processing Works
+## What It Does
 
-- **Memory Efficient**: Only loads 10,000 tokens in memory at once, not the entire document
-- **Dynamic Chunking**: Splits large documents into working chunks automatically
-- **No Size Limit**: Can process 100k, 200k, or larger documents without issues
-- **Smart Refill**: When working chunk gets small (under 5,000 tokens), refills from remaining text
+This application takes any text document and splits it into semantic chunks that preserve meaning. It then stores these chunks in a vector database so you can search through them later.
 
-## Features
+## Key Features
 
-- **Text Chunking**: Uses Gemini to split documents into semantic chunks
-- **Large Document Support**: Handles documents of any size efficiently
-- **Vector Search**: Azure Cohere Embed v4 and Qdrant vector database
-- **Hybrid Search**: Combines dense and sparse vectors for optimal search results
+- **Smart Chunking**: Uses Gemini AI to create meaningful chunks instead of arbitrary splits
+- **Handles Any Size**: Works with small documents (10+ words) and large documents (100k+ words)
+- **Fast Processing**: Optimized for performance with efficient chunking strategies
+- **Vector Search**: Uses Cohere embeddings and Qdrant database for semantic search
+- **Web Interface**: Simple web UI for testing and usage
 
-## 📁 Project Structure
+## How It Works
 
-```
-chunker/
-├── app.py                 # Main FastAPI application 
-├── config.py              # Configuration and environment variables
-├── constants.py           # Important numbers and settings
-├── ai_services.py         # Gemini and Cohere functions
-├── text_tools.py          # Text processing and splitting utilities
-├── vector_database.py     # Qdrant database operations
-├── requirements.txt       # Python dependencies
-├── templates/
-│   └── index.html         # Web interface
-└── .env                   # Environment variables
-```
+### For Small Documents (under 10k words)
+- Sends the entire document to AI for semantic analysis
+- Creates 1-3 meaningful chunks with proper headings, keywords, and summaries
+
+### For Large Documents (over 10k words)
+- Processes in 10k word working chunks to avoid memory issues
+- Extracts semantic chunks iteratively
+- Refills working chunks when they get below 5k words
+- Never loads the entire document into memory at once
+
+### Performance
+- Small docs: Process in 5-15 seconds
+- Large docs: About 100-150 words per second
+- Creates substantial chunks (500-2000 words each) instead of tiny fragments
 
 ## Setup
 
-1. **Install dependencies:**
+1. **Install Python packages:**
    ```bash
    pip install -r requirements.txt
    ```
 
-2. **Create `.env` file with your API keys:**
+2. **Create a `.env` file with your API keys:**
    ```env
-   # Gemini
-   GEMINI_API_KEY=your_gemini_api_key_here
-   
-   # Azure Cohere
-   AZURE_COHERE_API_KEY=your_azure_cohere_key_here
-   AZURE_COHERE_ENDPOINT=your_azure_endpoint_here
-   COHERE_MODEL_NAME=embed-v-4-0
-   
-   # Qdrant Database
-   QDRANT_URL=your_qdrant_url_here
-   QDRANT_API_KEY=your_qdrant_api_key_here
-   
-   # Application Settings (optional)
+   # Required: Gemini AI for chunking
+   GEMINI_API_KEY=your_gemini_api_key
+
+   # Required: Azure Cohere for embeddings
+   AZURE_COHERE_API_KEY=your_azure_cohere_key
+   AZURE_COHERE_ENDPOINT=your_azure_endpoint
+   COHERE_MODEL_NAME=cohere-embed-v-4
+
+   # Required: Qdrant for vector storage
+   QDRANT_URL=your_qdrant_url
+   QDRANT_API_KEY=your_qdrant_api_key
+
+   # Optional: App settings
    APP_HOST=0.0.0.0
    APP_PORT=8000
    DEBUG_MODE=true
@@ -64,60 +63,69 @@ chunker/
    python app.py
    ```
 
-4. **Open your browser:**
+4. **Open in browser:**
    ```
    http://localhost:8000
    ```
 
-## How It Works
-
-### Text Chunking Process
-1. **Small texts** (≤10k tokens): Processed directly with Gemini
-2. **Large texts** (>10k tokens): Uses dynamic chunking:
-   - Maintains 10k token working chunks
-   - Extracts semantic chunks one by one
-   - Refills working chunk when it gets below 5k tokens
-   - Never loads entire document in memory
-
-### Search Process
-1. **Hybrid Search**: Combines dense vectors (meaning) + sparse vectors (keywords)
-2. **Simple Parameters**: Uses fixed settings for consistent performance
-3. **Fusion Ranking**: Uses Reciprocal Rank Fusion for best results
-
 ## API Endpoints
 
-- `GET /` - Web interface
-- `POST /chunk` - Process and chunk text
-- `POST /search` - Search for similar chunks
-- `POST /embed-and-store` - Store pre-chunked content
-- `GET /health` - Health check for all services
+- **GET /** - Web interface for testing
+- **POST /chunk** - Submit text to be chunked and stored
+- **POST /search** - Search for similar chunks
+- **POST /embed-and-store** - Store pre-processed chunks
+- **GET /health** - Check if all services are working
 
-## Key Functions
+## File Structure
 
-### AI Services (`ai_services.py`)
-- `count_text_tokens()` - Count tokens in text
-- `break_text_into_chunks()` - Semantic chunking with Gemini
-- `get_text_embedding()` - Get vector embeddings from Cohere
-- `validate_ai_services()` - Test connections
+```
+chunker/
+├── app.py                 # Main FastAPI application
+├── config.py              # Environment variable handling
+├── constants.py           # Configuration settings
+├── ai_services.py         # Gemini and Cohere API calls
+├── text_tools.py          # Text processing and chunking logic
+├── vector_database.py     # Qdrant database operations
+├── requirements.txt       # Python dependencies
+├── templates/index.html   # Web interface
+└── .env                   # Your API keys (create this)
+```
 
-### Text Tools (`text_tools.py`)
-- `split_text_by_tokens()` - Split text by exact token count
-- `process_large_text()` - Dynamic chunking for large documents
-- `clean_text_for_processing()` - Prepare text for processing
+## Main Functions
 
-### Vector Database (`vector_database.py`)
-- `setup_vector_database()` - Initialize Qdrant collection
-- `save_chunks_to_database()` - Store chunks with embeddings
-- `search_similar_chunks()` - Hybrid search with dense + sparse vectors
-- `validate_vector_database()` - Test database connection
+### Text Processing
+- **process_large_text()** - Main chunking function for any document size
+- **count_words()** - Count words in text
+- **clean_text_for_processing()** - Prepare text for processing
+
+### AI Services
+- **break_text_into_chunks()** - Send text to Gemini for semantic chunking
+- **get_text_embedding()** - Get vector embeddings from Cohere
+- **get_search_embedding()** - Get embeddings optimized for search queries
+
+### Database Operations
+- **save_chunks_to_database()** - Store chunks with embeddings in Qdrant
+- **search_similar_chunks()** - Find similar chunks using hybrid search
+- **setup_vector_database()** - Initialize the database collection
 
 ## Configuration
 
-Key settings in `constants.py`:
-- **Working chunk size**: 10,000 tokens
-- **Refill threshold**: 5,000 tokens
-- **Vector dimensions**: 1536 (Cohere Embed v4)
+Key settings you can adjust in `constants.py`:
+- **DEFAULT_CHUNK_SIZE**: 10,000 words (working chunk size)
+- **MIN_CHUNK_REFILL_SIZE**: 5,000 words (when to refill working chunk)
+- **COHERE_VECTOR_DIMENSIONS**: 1536 (Cohere Embed v4 vector size)
 
-The system automatically validates all services on startup and shows clear error messages for any issues.
+## Troubleshooting
 
-Use `GET /health` endpoint to check service status. 
+- Use **GET /health** to check if all services are connected
+- Check the console output for detailed processing logs
+- Make sure all API keys are valid and have proper permissions
+- Qdrant collection is created automatically on first run
+
+## Performance Notes
+
+The system is optimized for both speed and quality:
+- Creates fewer, larger chunks instead of many tiny ones
+- Processes documents efficiently without loading everything into memory
+- Uses hybrid search combining semantic similarity and keyword matching
+- Handles documents from 10 words to 100k+ words effectively 

@@ -123,28 +123,7 @@ def _create_basic_collection():
         print(f"ERROR: Failed to create even basic collection: {e}")
 
 
-def _apply_performance_optimizations():
-    """Apply performance optimizations to existing collection"""
-    try:
-        hnsw_config = models.HnswConfigDiff(
-            m=HNSW_M_VALUE,
-            ef_construct=HNSW_EF_CONSTRUCT,
-            on_disk=False,
-        )
-        
-        optimizer_config = models.OptimizersConfigDiff(
-            default_segment_number=DEFAULT_SEGMENTS,
-        )
-        
-        qdrant_client.update_collection(
-            collection_name=QDRANT_COLLECTION_NAME,
-            hnsw_config=hnsw_config,
-            optimizers_config=optimizer_config
-        )
-        pass
-        
-    except Exception as e:
-        print(f"ERROR: Could not apply optimizations: {e}")
+
 
 
 def save_chunks_to_database(chunks, document_id=None):
@@ -279,9 +258,6 @@ def _has_sparse_support():
         return hasattr(collection_info.config.params, 'sparse_vectors') and collection_info.config.params.sparse_vectors
     except:
         return False
-
-
-
 
 
 def _hybrid_search(query, query_dense_embedding, limit, search_params):

@@ -18,5 +18,4 @@ DEFAULT_SEGMENTS = 8  # Match CPU cores for parallel processing
 GEMINI_TEMPERATURE = 0.1
 GEMINI_RESPONSE_TYPE = "application/json"
 
-# Token estimation fallback (when API fails)
-WORDS_TO_TOKENS_RATIO = 1.33  # 1 token = approx 0.75 words
+

@@ -1,5 +1,5 @@
 import re
-from constants import DEFAULT_CHUNK_SIZE, WORDS_TO_TOKENS_RATIO, MIN_CHUNK_REFILL_SIZE, MAX_SAFE_GEMINI_WORDS
+from constants import DEFAULT_CHUNK_SIZE, MIN_CHUNK_REFILL_SIZE, MAX_SAFE_GEMINI_WORDS
 
 
 def count_words(text):
@@ -104,14 +104,14 @@ def process_large_text(text, chunk_size=DEFAULT_CHUNK_SIZE):
                     continue
             
             # Process the working chunk if it has substantial content
-            if working_words < 500:  # Handle very small chunks
+            if working_words < 10:  # Only skip AI for extremely tiny chunks (less than 10 words)
                 if working_chunk.strip():
-                    print(f"Saving small chunk directly: {working_words:,} words")
+                    print(f"Saving tiny chunk directly: {working_words:,} words")
                     all_chunks.append({
                         "heading": "Content",
                         "content": working_chunk.strip(),
                         "keywords": [],
-                        "summary": "Small content section"
+                        "summary": "Very small content section"
                     })
                 break
             
@@ -180,8 +180,8 @@ def process_large_text(text, chunk_size=DEFAULT_CHUNK_SIZE):
                 print(f"Working chunk after extraction: {remaining_working_words:,} words")
                 
                 # If remainder is very small, save it directly instead of processing again
-                if 0 < remaining_working_words < 500:
-                    print(f"Saving small remainder directly: {remaining_working_words:,} words")
+                if 0 < remaining_working_words < 10:
+                    print(f"Saving tiny remainder directly: {remaining_working_words:,} words")
                     all_chunks.append({
                         "heading": "Additional Content",
                         "content": working_chunk.strip(),
@@ -225,13 +225,7 @@ def _remove_chunk_from_text(current_chunk, chunk_content):
         return ""
 
 
-def estimate_tokens_from_words(text):
-    """
-    Backup method to estimate tokens when AI token counting fails.
-    Uses word count approximation.
-    """
-    words = count_words(text)
-    return int(words * WORDS_TO_TOKENS_RATIO)
+
 
 
 def clean_text_for_processing(text):
