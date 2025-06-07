@@ -2,24 +2,12 @@
 
 A FastAPI application that breaks large texts into meaningful chunks using AI and provides semantic search capabilities with vector embeddings.
 
-## Can It Handle Large Documents?
-
-**YES. This system can handle documents of any size, including 100k+ tokens.**
-
 ### How Large Document Processing Works
 
 - **Memory Efficient**: Only loads 10,000 tokens in memory at once, not the entire document
 - **Dynamic Chunking**: Splits large documents into working chunks automatically
 - **No Size Limit**: Can process 100k, 200k, or larger documents without issues
 - **Smart Refill**: When working chunk gets small (under 5,000 tokens), refills from remaining text
-- **Error Safe**: If any chunk fails, saves it and continues with the rest
-
-### Processing Example for 100k Tokens
-- **Iterations needed**: ~10 
-- **Memory usage**: Maximum 10,000 tokens at once
-- **Output**: ~66 semantic chunks
-- **Time**: ~2-3 minutes
-- **AI calls**: ~66 requests to Gemini
 
 ## Features
 
