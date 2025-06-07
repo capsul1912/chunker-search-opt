@@ -73,7 +73,7 @@ async def chunk_text(text: str = Form(...)):
         
         # Use the safe limit for Gemini to prevent timeouts
         if token_count <= MAX_SAFE_GEMINI_TOKENS:
-            # Small text: use AI directly
+            # Small text: use AI directly (up to 10k tokens)
             print(f"Processing {token_count:,} tokens directly with Gemini")
             semantic_result = break_text_into_chunks(cleaned_text)
             

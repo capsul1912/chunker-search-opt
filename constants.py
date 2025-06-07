@@ -3,7 +3,7 @@
 # Token limits and chunk sizes
 DEFAULT_CHUNK_SIZE = 10000  # Default working chunk size in tokens
 MIN_CHUNK_REFILL_SIZE = 5000  # Stop chunking and refill when below this size
-MAX_SAFE_GEMINI_TOKENS = 8000  # Max tokens to send to Gemini to avoid timeouts
+MAX_SAFE_GEMINI_TOKENS = 10000  # Max tokens to send to Gemini to avoid timeouts
 
 # Embedding and vector settings
 COHERE_VECTOR_DIMENSIONS = 1536  # Cohere embed v4 vector size

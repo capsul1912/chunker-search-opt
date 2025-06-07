@@ -67,11 +67,13 @@ Text to process:
     
     # Retry mechanism with exponential backoff
     max_retries = 3
-    base_timeout = 60  # 60 seconds base timeout
+    base_timeout = 10  # 10 seconds base timeout
     
     for attempt in range(max_retries):
         try:
-            timeout = base_timeout * (2 ** attempt)  # Exponential backoff: 60s, 120s, 240s
+            timeout = base_timeout * (3 ** attempt)  # 10s, 30s, 90s - but we'll cap at 60s
+            if timeout > 60:
+                timeout = 60
             print(f"Attempt {attempt + 1}/{max_retries} (timeout: {timeout}s)")
             
             start_time = time.time()
