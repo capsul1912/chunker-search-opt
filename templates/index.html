@@ -1,0 +1,526 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Semantic Chunker & Search</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #141414;
+            --bg-tertiary: #1f1f1f;
+            --border-color: #262626;
+            --text-primary: #ffffff;
+            --text-secondary: #a3a3a3;
+            --text-muted: #737373;
+            --accent: #2563eb;
+            --accent-hover: #1d4ed8;
+            --accent-light: rgba(59, 130, 246, 0.1);
+            --success: #22c55e;
+            --error: #ef4444;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+        
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+        
+        .header p {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+        
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 2.5rem;
+            gap: 0;
+        }
+        
+        .tab-button {
+            background: none;
+            border: none;
+            padding: 1rem 0;
+            margin-right: 2rem;
+            color: var(--text-muted);
+            font-weight: 400;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+            border-bottom: 3px solid transparent;
+        }
+        
+        .tab-button.active {
+            color: var(--accent);
+            font-weight: 700;
+            border-bottom-color: var(--accent);
+        }
+        
+        .tab-button:hover:not(.active) {
+            color: var(--text-secondary);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+            font-weight: 500;
+            font-size: 0.875rem;
+        }
+        
+        .form-group textarea,
+        .form-group input {
+            width: 100%;
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.875rem;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+            font-family: inherit;
+            resize: vertical;
+            transition: all 0.15s ease;
+        }
+        
+        .form-group textarea:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--accent);
+            background-color: var(--bg-tertiary);
+        }
+        
+        .form-group textarea::placeholder,
+        .form-group input::placeholder {
+            color: var(--text-muted);
+        }
+        
+        .form-group textarea {
+            min-height: 120px;
+        }
+        
+        .form-row {
+            display: flex;
+            gap: 1rem;
+            align-items: end;
+        }
+        
+        .form-row .form-group {
+            flex: 1;
+            margin-bottom: 0;
+        }
+        
+        .form-row .form-group:last-child {
+            flex: 0 0 auto;
+        }
+        
+        .submit-btn {
+            background-color: var(--accent);
+            color: var(--text-primary);
+            border: none;
+            padding: 0.875rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            min-width: 100px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+        
+        .submit-btn:hover {
+            background-color: var(--accent-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+        }
+        
+        .submit-btn:disabled {
+            background-color: var(--bg-tertiary);
+            color: var(--text-muted);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        
+        .results {
+            margin-top: 2rem;
+        }
+        
+        .results-header {
+            margin-bottom: 1rem;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+        }
+        
+        .result-item {
+            background-color: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            transition: all 0.15s ease;
+        }
+        
+        .result-item:hover {
+            border-color: var(--accent);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .result-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+        
+        .result-title {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-size: 0.875rem;
+        }
+        
+        .search-score {
+            background-color: var(--accent);
+            color: var(--text-primary);
+            padding: 0.25rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        }
+        
+        .result-content {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            line-height: 1.5;
+            margin-bottom: 0.75rem;
+        }
+        
+        .result-summary {
+            color: var(--text-muted);
+            font-size: 0.8125rem;
+            font-style: italic;
+            margin-bottom: 0.5rem;
+        }
+        
+        .result-keywords {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.25rem;
+        }
+        
+        .keyword {
+            background-color: var(--bg-tertiary);
+            color: var(--text-secondary);
+            padding: 0.25rem 0.5rem;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .loading {
+            text-align: center;
+            color: var(--text-secondary);
+            padding: 2rem;
+            font-size: 0.875rem;
+        }
+        
+        .error {
+            background-color: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: var(--error);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-size: 0.875rem;
+        }
+        
+        .success {
+            background-color: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: var(--success);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-size: 0.875rem;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .header h1 {
+                font-size: 1.5rem;
+            }
+            
+            .form-row {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            
+            .form-row .form-group:last-child {
+                flex: 1;
+            }
+            
+            .result-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+            
+            .tab-button {
+                margin-right: 1rem;
+                font-size: 0.875rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Semantic Chunker & Search</h1>
+        </div>
+        
+        <div class="tabs">
+            <button class="tab-button active" onclick="switchTab('chunker')">Chunker</button>
+            <button class="tab-button" onclick="switchTab('search')">Search</button>
+        </div>
+        
+        <!-- Chunker Tab -->
+        <div id="chunker" class="tab-content active">
+            <form id="chunkForm">
+                <div class="form-group">
+                    <label for="text">Text to Process</label>
+                    <textarea id="text" name="text" placeholder="Enter your text here for semantic chunking..." required></textarea>
+                </div>
+                <button type="submit" class="submit-btn">Process Text</button>
+            </form>
+            
+            <div id="chunkResults" class="results"></div>
+        </div>
+        
+        <!-- Search Tab -->
+        <div id="search" class="tab-content">
+            <form id="searchForm">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="query">Search Query</label>
+                        <input type="text" id="query" name="query" placeholder="Enter your search query..." required>
+                    </div>
+                    <div class="form-group">
+                        <label for="limit">Results</label>
+                        <input type="number" id="limit" name="limit" value="5" min="1" max="20" style="width: 80px;">
+                    </div>
+                    <div class="form-group">
+                        <button type="submit" class="submit-btn">Search</button>
+                    </div>
+        </div>
+            </form>
+            
+            <div id="searchResults" class="results"></div>
+        </div>
+    </div>
+    
+    <script>
+        function switchTab(tabName) {
+            // Update tab buttons
+            document.querySelectorAll('.tab-button').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // Update tab content
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            document.getElementById(tabName).classList.add('active');
+        }
+
+        // Chunker form submission
+        document.getElementById('chunkForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const resultsDiv = document.getElementById('chunkResults');
+            
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Processing...';
+            resultsDiv.innerHTML = '<div class="loading">Processing your text...</div>';
+            
+            const formData = new FormData(this);
+            
+            try {
+                const response = await fetch('http://localhost:8000/chunk', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const responseText = await response.text();
+                let data;
+                
+                try {
+                    data = JSON.parse(responseText);
+                } catch (parseError) {
+                    throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}...`);
+                }
+                
+                if (data.detail) {
+                    // Handle FastAPI HTTPException error response
+                    resultsDiv.innerHTML = `<div class="error">Error: ${data.detail}</div>`;
+                } else if (data.result) {
+                    const result = JSON.parse(data.result);
+                    
+                    if (result.error) {
+                        resultsDiv.innerHTML = `<div class="error">Error: ${result.error}</div>`;
+                    } else if (result.chunks && result.chunks.length > 0) {
+                        let html = '<div class="results-header">Semantic Chunks:</div>';
+                        
+                        result.chunks.forEach((chunk, index) => {
+                            html += `
+                                <div class="result-item">
+                                    <div class="result-header">
+                                        <div class="result-title">${chunk.heading}</div>
+                                        <div class="search-score">Chunk ${index + 1}</div>
+                                    </div>
+                                    <div class="result-summary">${chunk.summary}</div>
+                                    <div class="result-content">${chunk.content}</div>
+                                    <div class="result-keywords">
+                                        ${chunk.keywords.map(keyword => `<span class="keyword">${keyword}</span>`).join('')}
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        
+                        resultsDiv.innerHTML = html;
+                    } else {
+                        resultsDiv.innerHTML = '<div class="error">No chunks were generated</div>';
+                    }
+                } else {
+                    resultsDiv.innerHTML = '<div class="error">Unexpected response format</div>';
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Process Text';
+            }
+        });
+
+        // Search form submission
+        document.getElementById('searchForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const resultsDiv = document.getElementById('searchResults');
+            
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Searching...';
+            resultsDiv.innerHTML = '<div class="loading">Searching...</div>';
+            
+            const formData = new FormData(this);
+            
+            try {
+                const response = await fetch('http://localhost:8000/search', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const responseText = await response.text();
+                let data;
+                
+                try {
+                    data = JSON.parse(responseText);
+                } catch (parseError) {
+                    throw new Error(`Invalid JSON response: ${responseText.substring(0, 100)}...`);
+                }
+                
+                if (data.detail) {
+                    // Handle FastAPI HTTPException error response
+                    resultsDiv.innerHTML = `<div class="error">Error: ${data.detail}</div>`;
+                } else if (data.results && data.results.length > 0) {
+                    let html = `<div class="results-header">Found ${data.results.length} results</div>`;
+                    
+                    data.results.forEach((result, index) => {
+                        html += `
+                            <div class="result-item">
+                                <div class="result-header">
+                                    <div class="result-title">${result.heading || 'Untitled'}</div>
+                                    <div class="search-score">${result.score.toFixed(3)}</div>
+                </div>
+                                ${result.summary ? `<div class="result-summary">${result.summary}</div>` : ''}
+                                <div class="result-content">${result.content}</div>
+                                ${result.keywords && result.keywords.length > 0 ? `
+                                    <div class="result-keywords">
+                                        ${result.keywords.map(keyword => `<span class="keyword">${keyword}</span>`).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+                    });
+                    
+                    resultsDiv.innerHTML = html;
+                } else if (data.results) {
+                    resultsDiv.innerHTML = '<div class="error">No results found</div>';
+                } else {
+                    resultsDiv.innerHTML = '<div class="error">Unexpected response format</div>';
+                }
+            } catch (error) {
+                resultsDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Search';
+            }
+        });
+    </script>
+</body>
+</html> 
