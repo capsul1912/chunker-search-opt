@@ -1,9 +1,9 @@
 # Constants for the Semantic Chunker Application
 
-# Token limits and chunk sizes
-DEFAULT_CHUNK_SIZE = 10000  # Default working chunk size in tokens
-MIN_CHUNK_REFILL_SIZE = 5000  # Stop chunking and refill when below this size
-MAX_SAFE_GEMINI_TOKENS = 10000  # Max tokens to send to Gemini to avoid timeouts
+# Word limits and chunk sizes (changed from tokens to words)
+DEFAULT_CHUNK_SIZE = 7000  # Default working chunk size in words 
+MIN_CHUNK_REFILL_SIZE = 3500  # Stop chunking and refill when below this size in words 
+MAX_SAFE_GEMINI_WORDS = 7000  # Max words to send to Gemini to avoid timeouts 
 
 # Embedding and vector settings
 COHERE_VECTOR_DIMENSIONS = 1536  # Cohere embed v4 vector size

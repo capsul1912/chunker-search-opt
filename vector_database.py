@@ -12,7 +12,7 @@ from constants import (
     COHERE_VECTOR_DIMENSIONS, QDRANT_COLLECTION_NAME,
     HNSW_M_VALUE, HNSW_EF_CONSTRUCT, DEFAULT_SEGMENTS
 )
-from ai_services import get_text_embedding, get_search_embedding, count_text_tokens
+from ai_services import get_text_embedding, get_search_embedding
 
 
 # Initialize Qdrant client
@@ -151,6 +151,8 @@ def save_chunks_to_database(chunks, document_id=None):
     Save text chunks to the vector database with embeddings.
     Returns the document ID if successful, None if failed.
     """
+    from text_tools import count_words  # Import here to avoid circular import
+    
     if document_id is None:
         document_id = str(uuid.uuid4())
     
@@ -191,7 +193,7 @@ def save_chunks_to_database(chunks, document_id=None):
                     "content": chunk["content"],
                     "keywords": chunk.get("keywords", []),
                     "summary": chunk.get("summary", ""),
-                    "token_count": count_text_tokens(chunk["content"])
+                    "word_count": count_words(chunk["content"])  # Changed from token_count to word_count
                 }
             )
             points.append(point)
@@ -345,7 +347,7 @@ def _format_search_results(search_results):
             "summary": result.payload.get("summary", ""),
             "document_id": result.payload.get("document_id", ""),
             "chunk_index": result.payload.get("chunk_index", 0),
-            "token_count": result.payload.get("token_count", 0)
+            "word_count": result.payload.get("word_count", 0)
         })
     return results
 

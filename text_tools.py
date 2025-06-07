@@ -1,36 +1,40 @@
 import re
-from constants import DEFAULT_CHUNK_SIZE, WORDS_TO_TOKENS_RATIO, MIN_CHUNK_REFILL_SIZE, MAX_SAFE_GEMINI_TOKENS
-from ai_services import count_text_tokens
+from constants import DEFAULT_CHUNK_SIZE, WORDS_TO_TOKENS_RATIO, MIN_CHUNK_REFILL_SIZE, MAX_SAFE_GEMINI_WORDS
 
 
-def split_text_by_tokens(text, target_tokens):
+def count_words(text):
+    """Count words in text using regex"""
+    return len(re.findall(r'\b\w+\b', text))
+
+
+def split_text_by_words(text, target_words):
     """
-    Split text to get approximately target_tokens worth of content.
+    Split text to get approximately target_words worth of content.
     Returns the extracted part and remaining text.
     """
-    if count_text_tokens(text) <= target_tokens:
+    if count_words(text) <= target_words:
         return text, ""
     
     # Try to split by paragraphs first to keep meaning together
     paragraphs = text.split('\n\n')
     extracted_parts = []
-    current_tokens = 0
+    current_words = 0
     
     for i, paragraph in enumerate(paragraphs):
-        paragraph_tokens = count_text_tokens(paragraph)
+        paragraph_words = count_words(paragraph)
         
-        if current_tokens + paragraph_tokens <= target_tokens:
+        if current_words + paragraph_words <= target_words:
             extracted_parts.append(paragraph)
-            current_tokens += paragraph_tokens
+            current_words += paragraph_words
         else:
             # If paragraph is too big, try splitting by sentences
-            if current_tokens < target_tokens * 0.8:  # Use 80% of available space
+            if current_words < target_words * 0.8:  # Use 80% of available space
                 sentences = re.split(r'(?<=[.!?])\s+', paragraph)
                 for sentence in sentences:
-                    sentence_tokens = count_text_tokens(sentence)
-                    if current_tokens + sentence_tokens <= target_tokens:
+                    sentence_words = count_words(sentence)
+                    if current_words + sentence_words <= target_words:
                         extracted_parts.append(sentence)
-                        current_tokens += sentence_tokens
+                        current_words += sentence_words
                     else:
                         break
             break
@@ -51,40 +55,41 @@ def process_large_text(text, chunk_size=DEFAULT_CHUNK_SIZE):
     """
     Process large text by maintaining working chunks and extracting semantic pieces.
     This is the main function for handling big documents.
+    Now uses word counting instead of token counting.
     """
-    from ai_services import break_text_into_chunks, count_text_tokens  # Import here to avoid circular import
+    from ai_services import break_text_into_chunks  # Import here to avoid circular import
     
     # Log the dynamic chunking process
-    total_tokens = count_text_tokens(text)
-    print(f"Dynamic chunking: {total_tokens:,} tokens")
+    total_words = count_words(text)
+    print(f"Dynamic chunking: {total_words:,} words")
     
     all_chunks = []
     remaining_text = text
     
     while remaining_text.strip():
-        # Get a working chunk (10k tokens)
-        working_chunk, remaining_text = split_text_by_tokens(remaining_text, chunk_size)
+        # Get a working chunk (7.5k words)
+        working_chunk, remaining_text = split_text_by_words(remaining_text, chunk_size)
         
         if not working_chunk.strip():
             break
         
-        working_tokens = count_text_tokens(working_chunk)
-        print(f"Working chunk: {working_tokens:,} tokens, Remaining: {count_text_tokens(remaining_text):,} tokens")
+        working_words = count_words(working_chunk)
+        print(f"Working chunk: {working_words:,} words, Remaining: {count_words(remaining_text):,} words")
             
-        # Process this working chunk until it gets below 5k tokens
+        # Process this working chunk until it gets below 3.75k words
         while working_chunk.strip():
-            working_tokens = count_text_tokens(working_chunk)
-            print(f"Current working chunk: {working_tokens:,} tokens")
+            working_words = count_words(working_chunk)
+            print(f"Current working chunk: {working_words:,} words")
             
-            # Check if we need to refill (below 5k tokens)
-            if working_tokens < MIN_CHUNK_REFILL_SIZE:
+            # Check if we need to refill (below 3.75k words)
+            if working_words < MIN_CHUNK_REFILL_SIZE:
                 if remaining_text.strip():
-                    # Refill with 5k tokens from remaining text
-                    refill_text, remaining_text = split_text_by_tokens(remaining_text, MIN_CHUNK_REFILL_SIZE)
+                    # Refill with 3.75k words from remaining text
+                    refill_text, remaining_text = split_text_by_words(remaining_text, MIN_CHUNK_REFILL_SIZE)
                     if refill_text.strip():
                         working_chunk = (working_chunk + "\n\n" + refill_text).strip()
-                        working_tokens = count_text_tokens(working_chunk)
-                        print(f"Refilled working chunk: {working_tokens:,} tokens, Remaining: {count_text_tokens(remaining_text):,} tokens")
+                        working_words = count_words(working_chunk)
+                        print(f"Refilled working chunk: {working_words:,} words, Remaining: {count_words(remaining_text):,} words")
                         continue
                 else:
                     # No more text to refill, save remaining and break
@@ -133,15 +138,15 @@ def process_large_text(text, chunk_size=DEFAULT_CHUNK_SIZE):
                 # Take the first semantic chunk that AI found
                 first_chunk = parsed_result["chunks"][0]
                 all_chunks.append(first_chunk)
-                print(f"Extracted chunk: '{first_chunk['heading'][:50]}...' ({count_text_tokens(first_chunk['content']):,} tokens)")
+                print(f"Extracted chunk: '{first_chunk['heading'][:50]}...' ({count_words(first_chunk['content']):,} words)")
                 
                 # Remove this chunk from working text
                 first_chunk_content = first_chunk["content"]
                 working_chunk = _remove_chunk_from_text(working_chunk, first_chunk_content)
                 
-                # Check token count after extracting chunk
-                remaining_working_tokens = count_text_tokens(working_chunk) if working_chunk.strip() else 0
-                print(f"After extraction, working chunk has: {remaining_working_tokens:,} tokens")
+                # Check word count after extracting chunk
+                remaining_working_words = count_words(working_chunk) if working_chunk.strip() else 0
+                print(f"After extraction, working chunk has: {remaining_working_words:,} words")
                 
             except Exception as e:
                 print(f"ERROR: Exception during processing: {e}")
@@ -166,9 +171,9 @@ def _remove_chunk_from_text(current_chunk, chunk_content):
         # Remove it cleanly
         return current_chunk[chunk_start + len(chunk_content):].lstrip('\n ')
     else:
-        # Fallback: estimate how much to remove based on tokens
-        chunk_tokens = count_text_tokens(chunk_content)
-        words_to_remove = int(chunk_tokens * 0.75)  # Rough guess
+        # Fallback: estimate how much to remove based on words
+        chunk_words = count_words(chunk_content)
+        words_to_remove = int(chunk_words * 0.75)  # Rough guess
         words = current_chunk.split()
         if len(words) > words_to_remove:
             return ' '.join(words[words_to_remove:])
@@ -181,7 +186,7 @@ def estimate_tokens_from_words(text):
     Backup method to estimate tokens when AI token counting fails.
     Uses word count approximation.
     """
-    words = len(re.findall(r'\b\w+\b', text))
+    words = count_words(text)
     return int(words * WORDS_TO_TOKENS_RATIO)
 
 

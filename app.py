@@ -7,9 +7,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # Import our organized modules
 from config import Config
-from constants import DEFAULT_CHUNK_SIZE, MAX_SAFE_GEMINI_TOKENS
-from ai_services import count_text_tokens, break_text_into_chunks, validate_ai_services
-from text_tools import process_large_text, clean_text_for_processing
+from constants import DEFAULT_CHUNK_SIZE, MAX_SAFE_GEMINI_WORDS
+from ai_services import break_text_into_chunks, validate_ai_services
+from text_tools import process_large_text, clean_text_for_processing, count_words
 from vector_database import (
     setup_vector_database, 
     save_chunks_to_database, 
@@ -65,16 +65,17 @@ async def chunk_text(text: str = Form(...)):
     """
     Break text into semantic chunks and store them in the database.
     Works with both small and large texts automatically.
+    Now uses word counting instead of token counting.
     """
     try:
         # Clean up the input text
         cleaned_text = clean_text_for_processing(text)
-        token_count = count_text_tokens(cleaned_text)
+        word_count = count_words(cleaned_text)
         
         # Use the safe limit for Gemini to prevent timeouts
-        if token_count <= MAX_SAFE_GEMINI_TOKENS:
-            # Small text: use AI directly (up to 10k tokens)
-            print(f"Processing {token_count:,} tokens directly with Gemini")
+        if word_count <= MAX_SAFE_GEMINI_WORDS:
+            # Small text: use AI directly (up to 7.5k words)
+            print(f"Processing {word_count:,} words directly with Gemini")
             semantic_result = break_text_into_chunks(cleaned_text)
             
             # Parse the AI response
@@ -91,7 +92,7 @@ async def chunk_text(text: str = Form(...)):
             return {"result": json.dumps(parsed_result)}
         else:
             # Large text: use dynamic chunking process
-            print(f"Processing {token_count:,} tokens with dynamic chunking")
+            print(f"Processing {word_count:,} words with dynamic chunking")
             result = process_large_text(cleaned_text)
             
             # Save chunks to database
