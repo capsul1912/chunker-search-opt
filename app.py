@@ -72,35 +72,15 @@ async def chunk_text(text: str = Form(...)):
         cleaned_text = clean_text_for_processing(text)
         word_count = count_words(cleaned_text)
         
-        # Use the safe limit for Gemini to prevent timeouts
-        if word_count <= MAX_SAFE_GEMINI_WORDS:
-            # Small text: use AI directly (up to 7.5k words)
-            print(f"Processing {word_count:,} words directly with Gemini")
-            semantic_result = break_text_into_chunks(cleaned_text)
-            
-            # Parse the AI response
-            if isinstance(semantic_result, str):
-                parsed_result = json.loads(semantic_result)
-            else:
-                parsed_result = semantic_result
-            
-            if "chunks" in parsed_result:
-                # Save chunks to database
-                document_id = save_chunks_to_database(parsed_result["chunks"])
-                parsed_result["document_id"] = document_id
-            
-            return {"result": json.dumps(parsed_result)}
-        else:
-            # Large text: use dynamic chunking process
-            print(f"Processing {word_count:,} words with dynamic chunking")
-            result = process_large_text(cleaned_text)
-            
-            # Save chunks to database
-            if "chunks" in result:
-                document_id = save_chunks_to_database(result["chunks"])
-                result["document_id"] = document_id
-            
-            return {"result": json.dumps(result)}
+        # All texts use dynamic chunking process
+        result = process_large_text(cleaned_text)
+        
+        # Save chunks to database
+        if "chunks" in result:
+            document_id = save_chunks_to_database(result["chunks"])
+            result["document_id"] = document_id
+        
+        return {"result": json.dumps(result)}
             
     except Exception as e:
         print(f"ERROR: Error in chunk_text: {e}")

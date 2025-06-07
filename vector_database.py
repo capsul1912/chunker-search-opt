@@ -1,4 +1,5 @@
 import uuid
+import time
 from qdrant_client import QdrantClient, models
 from qdrant_client.models import (
     Distance, VectorParams, PointStruct, 
@@ -150,13 +151,20 @@ def save_chunks_to_database(chunks, document_id=None):
     """
     Save text chunks to the vector database with embeddings.
     Returns the document ID if successful, None if failed.
+    Optimized for better performance with batch processing.
     """
     from text_tools import count_words  # Import here to avoid circular import
     
     if document_id is None:
         document_id = str(uuid.uuid4())
     
+    print(f"Storing {len(chunks)} chunks in database...")
+    start_time = time.time()
+    
     points = []
+    
+    # Pre-check sparse support once instead of per chunk
+    has_sparse_support = _has_sparse_support()
     
     for i, chunk in enumerate(chunks):
         try:
@@ -164,21 +172,19 @@ def save_chunks_to_database(chunks, document_id=None):
             dense_embedding = get_text_embedding(chunk["content"])
             
             if dense_embedding is None:
-                print(f"WARNING: Failed to get embedding for chunk {i}")
+                print(f"WARNING: Failed to get embedding for chunk {i+1}/{len(chunks)}")
                 continue
             
-            # Get sparse embedding using Qdrant's built-in BM25
-            sparse_document = _get_sparse_embedding(chunk["content"])
-            
-            # Check if we have hybrid search support
-            has_sparse_support = _has_sparse_support()
-            
-            # Prepare vector data
-            if has_sparse_support and sparse_document:
-                vector_data = {
-                    "dense": dense_embedding,
-                    "sparse": sparse_document
-                }
+            # Prepare vector data efficiently
+            if has_sparse_support:
+                sparse_document = _get_sparse_embedding(chunk["content"])
+                if sparse_document:
+                    vector_data = {
+                        "dense": dense_embedding,
+                        "sparse": sparse_document
+                    }
+                else:
+                    vector_data = dense_embedding
             else:
                 vector_data = dense_embedding
             
@@ -193,10 +199,12 @@ def save_chunks_to_database(chunks, document_id=None):
                     "content": chunk["content"],
                     "keywords": chunk.get("keywords", []),
                     "summary": chunk.get("summary", ""),
-                    "word_count": count_words(chunk["content"])  # Changed from token_count to word_count
+                    "word_count": count_words(chunk["content"])
                 }
             )
             points.append(point)
+            
+            print(f"✓ Processed chunk {i+1}/{len(chunks)}: {count_words(chunk['content'])} words")
             
         except Exception as e:
             print(f"ERROR: Error processing chunk {i}: {e}")
@@ -205,10 +213,16 @@ def save_chunks_to_database(chunks, document_id=None):
     # Save all points to database
     if points:
         try:
+            print(f"Saving {len(points)} points to database...")
             qdrant_client.upsert(
                 collection_name=QDRANT_COLLECTION_NAME,
                 points=points
             )
+            
+            end_time = time.time()
+            storage_time = end_time - start_time
+            print(f"✓ Database storage completed in {storage_time:.2f} seconds")
+            
             return document_id
         except Exception as e:
             print(f"ERROR: Error saving chunks to database: {e}")

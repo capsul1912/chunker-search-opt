@@ -20,36 +20,42 @@ def break_text_into_chunks(text):
     Returns chunks with headings, content, keywords, and summaries.
     Only retries on timeout (no response in 30 seconds).
     """
-    from text_tools import count_words
-    
-    # Count words and log the chunking attempt
-    word_count = count_words(text)
-    print(f"Sending {word_count:,} words to Gemini for chunking...")
-    
     prompt = """
-    You are an expert in semantic text segmentation. Your primary mission is to break down a document into its fundamental, self-contained units of meaning.
-The guiding principle is thematic coherence. A chunk represents a single, complete topic or concept. You should create a new chunk only when the text transitions to a new, distinct topic.
+
+You are an expert in semantic text segmentation. Your mission is to break down text into SUBSTANTIAL, meaningful chunks that are thematically complete and independent. 
+
+CRITICAL PERFORMANCE REQUIREMENTS:
+1. Create FEWER, LARGER chunks (aim for 500-2000 words per chunk when possible)
+2. Avoid micro-chunking - do not split every paragraph into separate chunks
+3. Prioritize efficiency - fewer chunks mean better performance
+
+Core Directive: Create Substantial Thematic Units
+
+Only create a new chunk when there is a MAJOR thematic shift or topic change. Minor topic variations, examples, elaborations, and related subtopics should stay together in the same chunk.
 
 Guiding Principles:
+1. Consolidate Related Content: Group multiple related paragraphs, sections, and concepts into single comprehensive chunks.
+2. Structural Unity: Keep structurally connected elements together:
+   - Introduction + body + conclusion of a topic
+   - Concept + examples + applications
+   - Problem + analysis + solution
+   - Process steps that work together
+3. Avoid Over-Segmentation: Strongly favor larger chunks. Only split when absolutely necessary for thematic coherence.
+4. Preserve Original Text: Copy content exactly as written, no modifications.
+5. Target Chunk Size: Aim for substantial chunks of 500-2000 words when the content allows it.
 
-Keep the EXACT original text in each chunk - don't change or summarize anything.
-Focus on Thematic Coherence: The length of a chunk is not important. What matters is that it contains one complete idea. A new chunk starts only when the topic changes.
-Preserve Original Text: The Content for each chunk must be the exact original text. Do not alter, summarize, or omit anything.
-Maintain Source Language: All generated output (Heading, Keywords, Summary) must be in the same language as the source text. Do not translate.
-Group Related Elements: Keep closely related information together. For example, a concept and its examples, a problem and its solution, or sequential steps in a process should all be in the same chunk.
-
-For each chunk you identify, provide the following structure:
-Heading: A concise title that captures the core topic of the chunk.
-Content: The exact, unaltered original text for this chunk.
-Keywords: 7-10 important words or phrases from the chunk that are central to its meaning.
-Summary: A brief 1-2 sentence description of the information presented in the chunk.
+Output Structure:
+Heading: A comprehensive title that covers the entire chunk's scope
+Content: The exact, unaltered original text (favor longer sections)
+Keywords: 7-10 key terms representing the chunk's main concepts
+Summary: A 2-3 sentence overview of the chunk's complete content
 
 Text to process:
 """ + text
     
-    # Try the API call first without retry messaging
-    max_retries = 3
-    timeout = 30  # 30 seconds timeout
+    # Optimized retry settings for better performance
+    max_retries = 2  # Fewer retries for faster failure
+    timeout = 20     # Shorter timeout for faster response
     
     for attempt in range(max_retries):
         try:
@@ -87,18 +93,13 @@ Text to process:
                 }
             )
             
-            elapsed_time = time.time() - start_time
-            print(f"Gemini response received in {elapsed_time:.1f}s")
-            
             # Parse and validate the results
             try:
                 result = json.loads(response.text)
                 if "chunks" not in result:
-                    print("WARNING: Gemini: Response missing chunks array")
-                else:
-                    print(f"SUCCESS: Received {len(result['chunks'])} chunks from Gemini")
+                    return json.dumps({"error": "Response missing chunks array"})
             except json.JSONDecodeError:
-                print("WARNING: Gemini: Response not in JSON format")
+                return json.dumps({"error": "Response not in JSON format"})
             
             return response.text
             
@@ -109,25 +110,19 @@ Text to process:
             # Only retry on timeout-related errors
             is_timeout = any(keyword in error_message for keyword in [
                 'timeout', 'timed out', 'deadline exceeded', 'connection timeout',
-                'read timeout', 'request timeout', 'no response'
+                'read timeout', 'request timeout'
             ])
             
             if is_timeout:
-                print(f"TIMEOUT: Gemini timed out after {elapsed_time:.1f}s: {e}")
-                
                 # If this was the last attempt, return error
                 if attempt == max_retries - 1:
-                    print(f"ERROR: All {max_retries} timeout attempts failed. Giving up.")
                     return json.dumps({"error": f"Timeout after {max_retries} attempts: {str(e)}"})
                 
-                # Show retry attempt info only when actually retrying
-                print(f"Retrying... (attempt {attempt + 2}/{max_retries})")
+                # Wait before retrying
                 wait_time = 2 ** attempt  # 1s, 2s, 4s
-                print(f"Waiting {wait_time}s before retry...")
                 time.sleep(wait_time)
             else:
                 # Non-timeout error - don't retry, return immediately
-                print(f"ERROR: Gemini API error after {elapsed_time:.1f}s: {e}")
                 return json.dumps({"error": f"API error: {str(e)}"})
 
 
@@ -161,18 +156,13 @@ def get_text_embedding(text):
                 result = response.json()
                 return result["data"][0]["embedding"]
             else:
-                print(f"Cohere API error: {response.status_code} - {response.text}")
                 return None  # Don't retry on API errors, only timeouts
                 
         except (requests.exceptions.Timeout, requests.exceptions.ReadTimeout) as e:
-            print(f"TIMEOUT: Cohere embedding timed out: {e}")
             if attempt == max_retries - 1:
-                print(f"ERROR: All {max_retries} timeout attempts failed.")
                 return None
-            print(f"Retrying... (attempt {attempt + 2}/{max_retries})")
             time.sleep(1)  # Brief wait before retry
         except Exception as e:
-            print(f"ERROR: Cohere embedding API error: {e}")
             return None  # Don't retry on non-timeout errors
     
     return None
@@ -208,18 +198,13 @@ def get_search_embedding(text):
                 result = response.json()
                 return result["data"][0]["embedding"]
             else:
-                print(f"Cohere search embedding error: {response.status_code} - {response.text}")
                 return None  # Don't retry on API errors, only timeouts
                 
         except (requests.exceptions.Timeout, requests.exceptions.ReadTimeout) as e:
-            print(f"TIMEOUT: Cohere search embedding timed out: {e}")
             if attempt == max_retries - 1:
-                print(f"ERROR: All {max_retries} timeout attempts failed.")
                 return None
-            print(f"Retrying... (attempt {attempt + 2}/{max_retries})")
             time.sleep(1)  # Brief wait before retry
         except Exception as e:
-            print(f"ERROR: Cohere search embedding API error: {e}")
             return None  # Don't retry on non-timeout errors
     
     return None
