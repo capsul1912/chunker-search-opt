@@ -1,5 +1,5 @@
 import re
-from constants import DEFAULT_CHUNK_SIZE, WORDS_TO_TOKENS_RATIO, MIN_CHUNK_REFILL_SIZE
+from constants import DEFAULT_CHUNK_SIZE, WORDS_TO_TOKENS_RATIO, MIN_CHUNK_REFILL_SIZE, MAX_SAFE_GEMINI_TOKENS
 from ai_services import count_text_tokens
 
 
@@ -73,8 +73,17 @@ def process_large_text(text, chunk_size=DEFAULT_CHUNK_SIZE):
             
         # Process chunks one by one until we need to refill
         while current_chunk.strip():
+            # Check if current chunk is too large for Gemini - split if needed
+            current_tokens = count_text_tokens(current_chunk)
+            if current_tokens > MAX_SAFE_GEMINI_TOKENS:
+                print(f"WARNING: Chunk too large ({current_tokens:,} tokens), splitting to {MAX_SAFE_GEMINI_TOKENS:,} tokens")
+                gemini_chunk, current_chunk = split_text_by_tokens(current_chunk, MAX_SAFE_GEMINI_TOKENS)
+            else:
+                gemini_chunk = current_chunk
+                current_chunk = ""
+            
             # Use AI to find the next semantic chunk
-            semantic_result = break_text_into_chunks(current_chunk)
+            semantic_result = break_text_into_chunks(gemini_chunk)
             
             try:
                 # Handle the AI response
@@ -89,7 +98,7 @@ def process_large_text(text, chunk_size=DEFAULT_CHUNK_SIZE):
                     print(f"ERROR: Gemini error: {parsed_result['error']}")
                     all_chunks.append({
                         "heading": "Processing Error",
-                        "content": current_chunk,
+                        "content": gemini_chunk,
                         "keywords": [],
                         "summary": f"Error during processing: {parsed_result['error']}"
                     })
@@ -100,48 +109,39 @@ def process_large_text(text, chunk_size=DEFAULT_CHUNK_SIZE):
                     print("WARNING: No semantic chunks returned, saving as single piece")
                     all_chunks.append({
                         "heading": "Unprocessed Content",
-                        "content": current_chunk,
+                        "content": gemini_chunk,
                         "keywords": [],
                         "summary": "Content that could not be broken into chunks"
                     })
                     break
                 
-                # Take the first semantic chunk AI found
-                first_chunk = parsed_result["chunks"][0]
-                all_chunks.append(first_chunk)
+                # Add all chunks returned by Gemini
+                for chunk in parsed_result["chunks"]:
+                    all_chunks.append(chunk)
                 
-                # Remove this chunk from our working text
-                first_chunk_content = first_chunk["content"]
-                current_chunk = _remove_chunk_from_text(current_chunk, first_chunk_content)
+                # If we split the working chunk, add the remaining part back
+                if current_chunk.strip():
+                    print(f"Adding remaining split chunk back to working text ({count_text_tokens(current_chunk):,} tokens)")
+                    continue
                 
-                # Check if remaining chunk is too small to continue
-                current_tokens = count_text_tokens(current_chunk) if current_chunk.strip() else 0
-                if current_tokens < MIN_CHUNK_REFILL_SIZE and current_tokens > 0:
-                    # Try to refill from remaining text
-                    if remaining_text.strip():
-                        tokens_needed = chunk_size - current_tokens
-                        refill_text, remaining_text = split_text_by_tokens(remaining_text, tokens_needed)
-                        
-                        if refill_text.strip():
-                            current_chunk = (current_chunk + "\n\n" + refill_text).strip()
-                            continue  # Continue processing with refilled chunk
-                    
-                    # Can't refill or no remaining text, save what's left and break
-                    if current_chunk.strip():
-                        all_chunks.append({
-                            "heading": "Remaining Content",
-                            "content": current_chunk.strip(),
-                            "keywords": [],
-                            "summary": "Final remaining text"
-                        })
-                    break
+                # Check if we need to refill from document
+                if not current_chunk.strip() and remaining_text.strip():
+                    # Get more text from the document
+                    refill_text, remaining_text = split_text_by_tokens(remaining_text, chunk_size)
+                    if refill_text.strip():
+                        current_chunk = refill_text
+                        print(f"Refilled working chunk with {count_text_tokens(current_chunk):,} tokens from document")
+                        continue
+                
+                # No more text to process
+                break
                 
             except Exception as e:
                 print(f"ERROR: Exception during processing: {e}")
                 # Save the whole chunk if something went wrong
                 all_chunks.append({
                     "heading": "Processing Error",
-                    "content": current_chunk,
+                    "content": gemini_chunk,
                     "keywords": [],
                     "summary": f"Error during processing: {str(e)}"
                 })
@@ -169,12 +169,6 @@ def _remove_chunk_from_text(current_chunk, chunk_content):
             return ' '.join(words[words_to_remove:])
         else:
             return ""
-
-
-
-
-
-
 
 
 def estimate_tokens_from_words(text):

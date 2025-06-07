@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 # Import our organized modules
 from config import Config
-from constants import DEFAULT_CHUNK_SIZE
+from constants import DEFAULT_CHUNK_SIZE, MAX_SAFE_GEMINI_TOKENS
 from ai_services import count_text_tokens, break_text_into_chunks, validate_ai_services
 from text_tools import process_large_text, clean_text_for_processing
 from vector_database import (
@@ -71,8 +71,10 @@ async def chunk_text(text: str = Form(...)):
         cleaned_text = clean_text_for_processing(text)
         token_count = count_text_tokens(cleaned_text)
         
-        if token_count <= DEFAULT_CHUNK_SIZE:
+        # Use the safe limit for Gemini to prevent timeouts
+        if token_count <= MAX_SAFE_GEMINI_TOKENS:
             # Small text: use AI directly
+            print(f"Processing {token_count:,} tokens directly with Gemini")
             semantic_result = break_text_into_chunks(cleaned_text)
             
             # Parse the AI response
@@ -89,6 +91,7 @@ async def chunk_text(text: str = Form(...)):
             return {"result": json.dumps(parsed_result)}
         else:
             # Large text: use dynamic chunking process
+            print(f"Processing {token_count:,} tokens with dynamic chunking")
             result = process_large_text(cleaned_text)
             
             # Save chunks to database
